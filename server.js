@@ -3,56 +3,102 @@ const cors = require("cors");
 const app = express();
 const port = 8080;
 const models = require("./models");
+const multer = require("multer");
+const { diskStorage } = require("multer");
+
+const upload = multer({
+    storage: multer.diskStorage({
+        destination : function(req, file, cb){
+            cb(null, "uploads/")
+        }, filename: function(req, file, cb){
+            cb(null, file.originalname)
+        }
+    })
+})
 
 app.use(express.json());
 app.use(cors());
+app.use("/uploads", express.static("uploads"));
 
 app.get("/products", (req, res) => {
-    const query = req.query;
-    console.log("Query : ", query);
-    res.send(
-        {
-            "products" : [
-                {
-                    "id" : 1,
-                    "name" : "농구공",
-                    "price" : 10000,
-                    "seller": "조던",
-                    "imageUrl": "images/products/basketball1.jpeg"
-                },{
-                    "id" : 2,
-                    "name" : "키보드",
-                    "price" : 15000,
-                    "seller": "매시",
-                    "imageUrl": "images/products/keyboard1.jpg"
-                },{
-                    "id" : 3,
-                    "name" : "아령",
-                    "price" : 20000,
-                    "seller": "그랩",
-                    "imageUrl": "images/products/dumbell1.jpeg"
-                },{
-                    "id" : 4,
-                    "name" : "노트북",
-                    "price" : 18000,
-                    "seller": "조던",
-                    "imageUrl": "images/products/notebook1.jpg"
-                }
-            ]
-        }
-    )
+    models.Product.findAll({
+        limit: 50,
+        order: [["createdAt", "DESC"]],
+        attributes : [
+            'id',
+            'name',
+            'price',
+            'seller',
+            'createdAt',
+            'imageUrl',
+        ]
+    })
+    .then((result) => {
+        console.log("조회 완료 : ", result);
+        res.send({
+            products : result,
+        })
+    }).catch((error) => {
+        console.error(error);
+        res.send("조회에 문제가 발생했습니다.");
+    })
+    
 });
 app.post("/products", (req, res) => {
     const body = req.body;
-    res.send(
-        body
-    )
+    const {name, price, seller, description} = body;
+
+    if(!name || !price || !seller || !description){
+        res.send("모든 필드를 입력해주세요.")
+        return;
+    }
+
+    models.Product.create({
+        name,
+        price, 
+        seller,
+        description
+    })
+    .then((result) => {
+        console.log("업로드 완료 : ", result);
+        res.send({
+            result,
+        });
+    })
+    .catch((error) => {
+        console.error(error);
+        res.send("업로드에 문제가 발생했습니다.");
+    })
 });
 app.get("/products/:id", (req, res) => {
     const params = req.params;
     const {id} = params;
-    res.send(`id는 ${id}입니다.`);
+
+    models.Product.findOne({
+        where : {
+            id : id
+        }
+    })
+    .then((result) => {
+        console.log("상세 페이지 조회 완료 : ", result);
+        res.send({
+            product : result
+        });
+    })
+    .catch((error) => {
+        console.error(error);
+        res.send("상세 페이지 조회에 문제가 발생했습니다.");
+    })
 })
+
+app.post("/image", upload.single("image"), (req, res) => {
+    const file = req.file;
+    console.log(file);
+    res.send({
+        imageUrl : file.path
+    })
+})
+
 app.listen(port, () => {
     console.log("그랩 쇼핑몰 서버가 돌아가고 있습니다.");
     models.sequelize
