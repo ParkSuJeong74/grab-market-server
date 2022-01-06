@@ -20,19 +20,18 @@ app.use(express.json());
 app.use(cors());
 app.use("/uploads", express.static("uploads"));
 
-app.get("/uploads", (req, res) => {
+app.get("/banners", (req, res) => {
     models.Banner.findAll({
-        limit:2
+        limit:2,
     }).then((result) => {
         res.send({
-            banner : result,
+            banners : result,
         })
     }).catch((error) => {
         console.error(error);
         res.status(500).send("배너에 문제가 발생했습니다.");
     })
 })
-
 
 app.get("/products", (req, res) => {
     models.Product.findAll({
@@ -45,6 +44,7 @@ app.get("/products", (req, res) => {
             'seller',
             'createdAt',
             'imageUrl',
+            'soldout',
         ]
     })
     .then((result) => {
@@ -58,6 +58,7 @@ app.get("/products", (req, res) => {
     })
     
 });
+
 app.post("/products", (req, res) => {
     const body = req.body;
     const {name, price, seller, description, imageUrl} = body;
@@ -85,6 +86,7 @@ app.post("/products", (req, res) => {
         res.status(400).send("업로드에 문제가 발생했습니다.");
     })
 });
+
 app.get("/products/:id", (req, res) => {
     const params = req.params;
     const {id} = params;
@@ -114,8 +116,30 @@ app.post("/image", upload.single("image"), (req, res) => {
     })
 })
 
+app.post("/purchase/:id", (req, res) => {
+    const {id} = req.params;
+    models.Product.update({
+        soldout : 1,
+    }, {
+        where : {
+            id
+        },
+    })
+    .then((result) => {
+        res.send({
+            result : true,
+        })
+    })
+    .catch((error) => {
+        console.error("에러가 발생했습니다.", error)
+        res.status(500).send("에러 발생!")
+    })
+})
+
 app.listen(port, () => {
     console.log("그랩 쇼핑몰 서버가 돌아가고 있습니다.");
+
+    //DB
     models.sequelize
     .sync()
     .then(() => {
